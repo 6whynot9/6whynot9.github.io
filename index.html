@@ -1,1 +1,58 @@
-привет
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBosTcvCb521hqR_0xxb-aqAQdGquGLVL4",
+    authDomain: "lolkek-52859.firebaseapp.com",
+    projectId: "lolkek-52859",
+    storageBucket: "lolkek-52859.firebasestorage.app",
+    messagingSenderId: "21758364168",
+    appId: "1:21758364168:web:b1be8f206e27f25b985fbd"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+</script>
+<!-- 1. Добавьте кнопку для входа в ваш HTML -->
+<button id="github-login">Войти через GitHub</button>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  
+  // 2. Импортируйте функции для работы с аутентификацией
+  import { getAuth, signInWithPopup, GithubAuthProvider } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBosTcvCb521hqR_0xxb-aqAQdGquGLVL4",
+    authDomain: "lolkek-52859.firebaseapp.com",
+    projectId: "lolkek-52859",
+    storageBucket: "lolkek-52859.firebasestorage.app",
+    messagingSenderId: "21758364168",
+    appId: "1:21758364168:web:b1be8f206e27f25b985fbd"
+  };
+
+  const app = initializeApp(firebaseConfig);
+
+  // 3. Инициализируйте Auth и провайдер GitHub
+  const auth = getAuth(app);
+  const provider = new GithubAuthProvider(); // [1]
+
+  // 4. Настройте обработчик клика по кнопке
+  document.getElementById("github-login").addEventListener("click", () => {
+    // Открываем всплывающее окно для авторизации через GitHub
+    signInWithPopup(auth, provider) // [1]
+      .then((result) => {
+        // Успешный вход! Получаем данные пользователя:
+        const user = result.user; // [1]
+        console.log("Вы успешно вошли как:", user.displayName);
+      })
+      .catch((error) => {
+        // Обработка ошибок
+        console.error("Ошибка при входе:", error.code, error.message); // [1]
+      });
+  });
+</script>
