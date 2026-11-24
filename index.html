@@ -14,45 +14,148 @@
     appId: "1:21758364168:web:b1be8f206e27f25b985fbd"
   };
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script>
-<!-- 1. Добавьте кнопку для входа в ваш HTML -->
-<button id="github-login">Войти через GitHub</button>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Firebase Auth + Realtime DB</title>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: 40px auto; padding: 0 20px; }
+    .hidden { display: none; }
+    button { padding: 8px 14px; margin-right: 8px; cursor: pointer; }
+    form { margin: 20px 0; display: flex; gap: 8px; }
+    input { flex: 1; padding: 8px; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
-  
-  // 2. Импортируйте функции для работы с аутентификацией
-  import { getAuth, signInWithPopup, GithubAuthProvider } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+  <div id="login-section">
+    <h2>Вход в систему</h2>
+    <button id="github-login">Войти через GitHub</button>
+    <button id="google-login">Войти с помощью Google</button>
+  </div>
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBosTcvCb521hqR_0xxb-aqAQdGquGLVL4",
-    authDomain: "lolkek-52859.firebaseapp.com",
-    projectId: "lolkek-52859",
-    storageBucket: "lolkek-52859.firebasestorage.app",
-    messagingSenderId: "21758364168",
-    appId: "1:21758364168:web:b1be8f206e27f25b985fbd"
-  };
+  <div id="app-section" class="hidden">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <p>Привет, <strong id="user-name"></strong>!</p>
+      <button id="logout-btn">Выйти</button>
+    </div>
 
-  const app = initializeApp(firebaseConfig);
+    <form id="data-form">
+      <input type="text" id="data-input" placeholder="Введите новую запись..." required>
+      <button type="submit">Добавить</button>
+    </form>
 
-  // 3. Инициализируйте Auth и провайдер GitHub
-  const auth = getAuth(app);
-  const provider = new GithubAuthProvider(); // [1]
+    <h3>Список данных из БД:</h3>
+    <ul id="data-list"></ul>
+  </div>
 
-  // 4. Настройте обработчик клика по кнопке
-  document.getElementById("github-login").addEventListener("click", () => {
-    // Открываем всплывающее окно для авторизации через GitHub
-    signInWithPopup(auth, provider) // [1]
-      .then((result) => {
-        // Успешный вход! Получаем данные пользователя:
-        const user = result.user; // [1]
-        console.log("Вы успешно вошли как:", user.displayName);
-      })
-      .catch((error) => {
-        // Обработка ошибок
-        console.error("Ошибка при входе:", error.code, error.message); // [1]
-      });
-  });
-</script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import { 
+      getAuth, 
+      GithubAuthProvider, 
+      GoogleAuthProvider, 
+      signInWithPopup, 
+      signOut, 
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+    import { 
+      getDatabase, 
+      ref, 
+      push, 
+      onValue 
+    } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBosTcvCb521hqR_0xxb-aqAQdGquGLVL4",
+      authDomain: "lolkek-52859.firebaseapp.com",
+      databaseURL: "https://lolkek-52859-default-rtdb.firebaseio.com",
+      projectId: "lolkek-52859",
+      storageBucket: "lolkek-52859.firebasestorage.app",
+      messagingSenderId: "21758364168",
+      appId: "1:21758364168:web:b1be8f206e27f25b985fbd"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    const githubProvider = new GithubAuthProvider();
+    const googleProvider = new GoogleAuthProvider();
+
+    const loginSection = document.getElementById("login-section");
+    const appSection = document.getElementById("app-section");
+    const userNameEl = document.getElementById("user-name");
+    const dataForm = document.getElementById("data-form");
+    const dataInput = document.getElementById("data-input");
+    const dataList = document.getElementById("data-list");
+
+    document.getElementById("github-login").addEventListener("click", () => {
+      signInWithPopup(auth, githubProvider).catch(err => alert(err.message));
+    });
+
+    document.getElementById("google-login").addEventListener("click", () => {
+      signInWithPopup(auth, googleProvider).catch(err => alert(err.message));
+    });
+
+    document.getElementById("logout-btn").addEventListener("click", () => {
+      signOut(auth).catch(err => alert(err.message));
+    });
+
+    let unsubscribeDB = null;
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loginSection.classList.add("hidden");
+        appSection.classList.remove("hidden");
+        userNameEl.textContent = user.displayName || user.email || "Пользователь";
+
+        const itemsRef = ref(db, "items");
+        unsubscribeDB = onValue(itemsRef, (snapshot) => {
+          dataList.innerHTML = "";
+          const data = snapshot.val();
+          if (data) {
+            Object.values(data).forEach((item) => {
+              const li = document.createElement("li");
+              li.textContent = `${item.text} (добавил: ${item.author})`;
+              dataList.appendChild(li);
+            });
+          } else {
+            dataList.innerHTML = "<li>Записей пока нет</li>";
+          }
+        });
+      } else {
+        loginSection.classList.remove("hidden");
+        appSection.classList.add("hidden");
+        dataList.innerHTML = "";
+        if (unsubscribeDB) {
+          unsubscribeDB();
+          unsubscribeDB = null;
+        }
+      }
+    });
+
+    dataForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = dataInput.value.trim();
+      const user = auth.currentUser;
+
+      if (text && user) {
+        const itemsRef = ref(db, "items");
+        push(itemsRef, {
+          text: text,
+          author: user.displayName || user.email || "Аноним",
+          createdAt: Date.now()
+        })
+        .then(() => {
+          dataInput.value = "";
+        })
+        .catch(err => alert("Ошибка записи: " + err.message));
+      }
+    });
+  </script>
+</body>
+</html>
