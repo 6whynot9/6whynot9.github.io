@@ -14,7 +14,8 @@
     form { margin: 20px 0; display: flex; gap: 8px; }
     form input { flex: 1; padding: 8px; }
     ul { padding-left: 20px; }
-    li { margin-bottom: 6px; }
+    li { margin-bottom: 8px; }
+    .delete-btn { padding: 4px 10px; margin-left: 10px; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -22,7 +23,6 @@
   <div id="login-section">
     <h2>Вход в систему</h2>
 
-    <!-- Вход и регистрация по почте и паролю -->
     <div class="auth-box">
       <input type="email" id="email-input" placeholder="Email" required>
       <input type="password" id="password-input" placeholder="Пароль (минимум 6 символов)" required>
@@ -34,7 +34,6 @@
 
     <hr>
 
-    <!-- Вход через сторонние сервисы -->
     <div class="btn-row">
       <button id="github-login" type="button">Войти через GitHub</button>
       <button id="google-login" type="button">Войти с помощью Google</button>
@@ -65,7 +64,7 @@
       signInWithPopup,
       createUserWithEmailAndPassword,
       signInWithEmailAndPassword,
-      sendEmailVerification, // <-- ДОБАВЛЕНО: импорт функции отправки письма
+      sendEmailVerification,
       signOut,
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
@@ -73,7 +72,8 @@
       getDatabase,
       ref,
       push,
-      onValue
+      onValue,
+      remove // <-- ДОБАВЛЕНО: импорт функции удаления
     } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
 
     const firebaseConfig = {
@@ -102,7 +102,6 @@
     const dataInput = document.getElementById("data-input");
     const dataList = document.getElementById("data-list");
 
-    // Регистрация по почте и паролю + отправка письма
     document.getElementById("email-register-btn").addEventListener("click", () => {
       const email = emailInput.value.trim();
       const password = passwordInput.value;
@@ -111,17 +110,15 @@
         return;
       }
       createUserWithEmailAndPassword(auth, email, password)
-        // <-- ДОБАВЛЕНО: отправка письма подтверждения после создания аккаунта
         .then((userCredential) => {
           return sendEmailVerification(userCredential.user);
         })
         .then(() => {
-          alert("Аккаунт создан! Письмо с подтверждением отправлено на " + email + " (проверьте также папку «Спам»).");
+          alert("Аккаунт создан! Письмо с подтверждением отправлено на " + email);
         })
         .catch(err => alert("Ошибка регистрации: " + err.message));
     });
 
-    // Вход по почте и паролю
     document.getElementById("email-login-btn").addEventListener("click", () => {
       const email = emailInput.value.trim();
       const password = passwordInput.value;
@@ -133,7 +130,6 @@
         .catch(err => alert("Ошибка входа: " + err.message));
     });
 
-    // Вход через GitHub и Google
     document.getElementById("github-login").addEventListener("click", () => {
       signInWithPopup(auth, githubProvider).catch(err => alert(err.message));
     });
@@ -142,7 +138,6 @@
       signInWithPopup(auth, googleProvider).catch(err => alert(err.message));
     });
 
-    // Выход
     document.getElementById("logout-btn").addEventListener("click", () => {
       signOut(auth).catch(err => alert(err.message));
     });
@@ -160,9 +155,24 @@
           dataList.innerHTML = "";
           const data = snapshot.val();
           if (data) {
-            Object.values(data).forEach((item) => {
+            // <-- ДОБАВЛЕНО: перебор пар [ключ, значение] и создание кнопки удаления
+            Object.entries(data).forEach(([key, item]) => {
               const li = document.createElement("li");
-              li.textContent = `${item.text} (добавил: ${item.author})`;
+
+              const textSpan = document.createElement("span");
+              textSpan.textContent = `${item.text} (добавил: ${item.author})`;
+
+              const deleteBtn = document.createElement("button");
+              deleteBtn.textContent = "Удалить";
+              deleteBtn.type = "button";
+              deleteBtn.className = "delete-btn";
+              deleteBtn.addEventListener("click", () => {
+                remove(ref(db, `items/${key}`))
+                  .catch(err => alert("Ошибка удаления: " + err.message));
+              });
+
+              li.appendChild(textSpan);
+              li.appendChild(deleteBtn);
               dataList.appendChild(li);
             });
           } else {
