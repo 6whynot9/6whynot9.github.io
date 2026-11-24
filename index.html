@@ -65,6 +65,7 @@
       signInWithPopup,
       createUserWithEmailAndPassword,
       signInWithEmailAndPassword,
+      sendEmailVerification, // <-- ДОБАВЛЕНО: импорт функции отправки письма
       signOut,
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
@@ -101,7 +102,7 @@
     const dataInput = document.getElementById("data-input");
     const dataList = document.getElementById("data-list");
 
-    // Регистрация по почте и паролю
+    // Регистрация по почте и паролю + отправка письма
     document.getElementById("email-register-btn").addEventListener("click", () => {
       const email = emailInput.value.trim();
       const password = passwordInput.value;
@@ -110,6 +111,13 @@
         return;
       }
       createUserWithEmailAndPassword(auth, email, password)
+        // <-- ДОБАВЛЕНО: отправка письма подтверждения после создания аккаунта
+        .then((userCredential) => {
+          return sendEmailVerification(userCredential.user);
+        })
+        .then(() => {
+          alert("Аккаунт создан! Письмо с подтверждением отправлено на " + email + " (проверьте также папку «Спам»).");
+        })
         .catch(err => alert("Ошибка регистрации: " + err.message));
     });
 
